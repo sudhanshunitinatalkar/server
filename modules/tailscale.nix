@@ -3,7 +3,7 @@ let
   tsModule = { ... }: {
     services.tailscale.enable = true;
   };
-  targetHosts = [ ];
+  targetHosts = [ cosmosserver ];
 in
 {
   configurations.nixos = lib.genAttrs targetHosts (name: {

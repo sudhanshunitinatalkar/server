@@ -10,7 +10,14 @@ let
       };
     };
   };
+
+  targetUserHosts = [
+    "sudha@cosmoslaptop"
+    "sudha@cosmosserver"
+  ]
 in
 {
-  configurations.home."sudha@cosmoslaptop".module = helix;
+  configurations.home = lib.genAttrs targetUserHosts (name: {
+    module = helix;
+  });
 }
