@@ -33,6 +33,7 @@ let
       # Disable forced SSL since Cloudflare is handling the HTTPS wrapper
       nginx = {
         forceSSL = false;
+        enableACME = false;
       };
     };
 
