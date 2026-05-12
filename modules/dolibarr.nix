@@ -1,4 +1,4 @@
-{ lib, config, ... }:
+{ lib, config, pkgs, ... }:
 let
   cloudflared = { ... }: {
     services.cloudflared = {
@@ -16,11 +16,18 @@ let
   };
 
   dolibarr_native = { ... }: {
+    # This automatically creates the required password file for the pre-installer
+    environment.etc."dolibarr-db-pass".text = "dolibarr_secret_database_pass";
+
     services.dolibarr = {
       enable = true;
       domain = "erp.protoplast.in";
 
-      # Use local native MariaDB (Much lighter than Docker)
+      # THE CHEAT CODE: Skips the Cloudflare timeout & web installer completely
+      preInstalled = true;
+      initialDbPasswordFile = "/etc/dolibarr-db-pass";
+
+      # Use local native MariaDB (Optimized for your Pentium/4GB RAM)
       database = {
         createLocally = true;
         type = "mysql";
@@ -31,7 +38,7 @@ let
         dolibarr_main_force_https = lib.mkForce true;
       };
 
-      # RAM OPTIMIZATION: Dial down the PHP workers for a 4GB system
+      # RAM OPTIMIZATION: Dial down the PHP workers
       poolConfig = {
         "pm" = "dynamic";
         "pm.max_children" = 10;
@@ -45,11 +52,9 @@ let
         forceSSL = false;
         enableACME = false;
         
-        # Tell Nginx to listen locally for Cloudflare
         listen = [ { addr = "127.0.0.1"; port = 8002; } ];
         
-        # Merge our Cloudflare HTTPS variables directly into the exact 
-        # PHP location block that the Dolibarr module generates.
+        # Bypasses the Cloudflare infinite redirect loop
         locations."~ [^/]\\.php(/|$)" = {
           fastcgiParams = {
             "HTTPS" = "on";
