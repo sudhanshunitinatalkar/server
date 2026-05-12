@@ -32,7 +32,7 @@ let
   };
 
   targetHosts = [ 
-    "server" 
+    # "server" 
   ];
 in
 {
