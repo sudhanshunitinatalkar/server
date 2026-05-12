@@ -36,7 +36,7 @@ let
       # 1. Hardcode the correct public URL so Dolibarr stops guessing
       settings = {
         dolibarr_main_url_root = "https://erp.protoplast.in";
-        dolibarr_main_force_https = "1";
+        dolibarr_main_force_https = true;
       };
     };
 
