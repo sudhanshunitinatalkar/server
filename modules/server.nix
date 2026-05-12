@@ -41,7 +41,7 @@ let
     hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
   };
 
-  targetHosts = [ "cosmosserver" ];
+  targetHosts = [ "server" ];
 in
 {
   configurations.nixos = lib.genAttrs targetHosts (name: {

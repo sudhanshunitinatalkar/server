@@ -1,6 +1,6 @@
 { ... }:
 let
-  cosmos = { pkgs, ... }: {
+  server = { pkgs, ... }: {
     nix.settings = {
       experimental-features = [ "nix-command" "flakes" "pipe-operators" ];
       trusted-users = [ "root" "sudha" ];
@@ -64,30 +64,12 @@ let
   };
 in
 {
-  configurations.nixos."cosmoslaptop".module = {
-    imports = [
-      cosmos
-      ({ pkgs, ... }: { 
-        boot = {
-          binfmt.emulatedSystems = [ "aarch64-linux" ];
-          kernelPackages = pkgs.linuxPackages_latest;
-          loader = {
-            systemd-boot.enable = true;
-            efi.canTouchEfiVariables = true;
-          };
-        };
-        networking.hostName = "cosmoslaptop"; 
-      })
-    ];
-  };
-  
   # Server-specific node definition
-  configurations.nixos."cosmosserver".module = {
+  configurations.nixos."server".module = {
     imports = [
-      cosmos
+      server
       ({ pkgs, ... }: { # 2. ADDED: Added 'config' to the arguments so it can be used below
         boot = {
-          binfmt.emulatedSystems = [ "aarch64-linux" ];
           kernelPackages = pkgs.linuxPackages_latest;
           loader = {
             grub = {
@@ -97,7 +79,7 @@ in
             };
           };
         };
-        networking.hostName = "cosmosserver"; 
+        networking.hostName = "server"; 
         services.avahi = {
           enable = true;
           nssmdns4 = true; # Allows software to use Avahi to resolve .local domains
