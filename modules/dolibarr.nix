@@ -16,21 +16,18 @@ let
   };
 
   dolibarr_native = { ... }: {
-    # This automatically creates the required password file for the pre-installer
+    # Provide the database password securely
     environment.etc."dolibarr-db-pass".text = "dolibarr_secret_database_pass";
 
     services.dolibarr = {
       enable = true;
       domain = "erp.protoplast.in";
 
-      # THE CHEAT CODE: Skips the Cloudflare timeout & web installer completely
-      preInstalled = true;
-      initialDbPasswordFile = "/etc/dolibarr-db-pass";
-
-      # Use local native MariaDB (Optimized for your Pentium/4GB RAM)
+      # Use local native MariaDB and the CORRECT password file option
       database = {
         createLocally = true;
         type = "mysql";
+        passwordFile = "/etc/dolibarr-db-pass"; 
       };
 
       settings = {
