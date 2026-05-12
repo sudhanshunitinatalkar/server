@@ -24,21 +24,30 @@ let
       enable = true;
       domain = "erp.protoplast.in"; 
       
-      # Automatically provision and configure a local PostgreSQL database
       database = {
         createLocally = true;
       };
 
-      # Disable forced SSL since Cloudflare is handling the HTTPS wrapper
       nginx = {
         forceSSL = false;
         enableACME = false;
       };
+
+      # 1. Hardcode the correct public URL so Dolibarr stops guessing
+      settings = {
+        dolibarr_main_url_root = "https://erp.protoplast.in";
+        dolibarr_main_force_https = "1";
+      };
     };
 
-    # Explicitly tell Nginx to listen on localhost so the Cloudflare tunnel can reach it
+    # 2. Trick Nginx & PHP into knowing they are behind an HTTPS proxy
     services.nginx.virtualHosts."erp.protoplast.in" = {
       listen = [ { addr = "127.0.0.1"; port = 8002; } ];
+      extraConfig = ''
+        fastcgi_param HTTPS on;
+        fastcgi_param SERVER_PORT 443;
+        fastcgi_param HTTP_X_FORWARDED_PROTO https;
+      '';
     };
   };
 
