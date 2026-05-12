@@ -11,7 +11,7 @@ let
           
           ingress = {
             # Replace "files.yourdomain.com" with your actual Cloudflare domain route
-            "files.yourdomain.com" = "http://localhost:8001";
+            "server.protoplast.in" = "http://localhost:8001";
           };
           
           # Fallback rule if the hostname doesn't match
