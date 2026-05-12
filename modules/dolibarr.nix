@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ lib, config, ... }:
 let
   cloudflared = { ... }: {
     services.cloudflared = {
@@ -15,37 +15,47 @@ let
     };
   };
 
-  dolibarr_app = { ... }: {
-    virtualisation.oci-containers = {
-      # Explicitly use Docker instead of Podman
-      backend = "docker"; 
-      
-      containers = {
-        dolibarr-db = {
-          image = "mariadb:10.6";
-          environment = {
-            # Allows MariaDB to boot completely raw without any passwords
-            MYSQL_ALLOW_EMPTY_PASSWORD = "yes";
-          };
-          volumes = [ "/var/lib/dolibarr/db:/var/lib/mysql" ];
-        };
+  dolibarr_native = { ... }: {
+    services.dolibarr = {
+      enable = true;
+      domain = "erp.protoplast.in";
 
-        dolibarr-app = {
-          # Using the official sponsored Dolibarr image
-          image = "dolibarr/dolibarr:latest"; 
-          ports = [ "127.0.0.1:8002:80" ];
-          dependsOn = [ "dolibarr-db" ];
-          environment = {
-            # We REMOVED the database passwords so the Web Installer triggers.
-            # We KEPT the HTTPS variables to prevent the Cloudflare infinite redirect loop.
-            DOLI_URL_ROOT = "https://erp.protoplast.in";
-            DOLI_PROD = "1";
-            DOLI_HTTPS = "1";
+      # Use local native MariaDB (Much lighter than Docker)
+      database = {
+        createLocally = true;
+        type = "mysql";
+      };
+
+      settings = {
+        dolibarr_main_url_root = "https://erp.protoplast.in";
+        dolibarr_main_force_https = lib.mkForce true;
+      };
+
+      # RAM OPTIMIZATION: Dial down the PHP workers for a 4GB system
+      poolConfig = {
+        "pm" = "dynamic";
+        "pm.max_children" = 10;
+        "pm.start_servers" = 2;
+        "pm.min_spare_servers" = 1;
+        "pm.max_spare_servers" = 3;
+      };
+
+      # Configure Nginx entirely inside the Dolibarr module
+      nginx = {
+        forceSSL = false;
+        enableACME = false;
+        
+        # Tell Nginx to listen locally for Cloudflare
+        listen = [ { addr = "127.0.0.1"; port = 8002; } ];
+        
+        # Merge our Cloudflare HTTPS variables directly into the exact 
+        # PHP location block that the Dolibarr module generates.
+        locations."~ [^/]\\.php(/|$)" = {
+          fastcgiParams = {
+            "HTTPS" = "on";
+            "SERVER_PORT" = "443";
+            "HTTP_X_FORWARDED_PROTO" = "https";
           };
-          volumes = [
-            "/var/lib/dolibarr/html:/var/www/html"
-            "/var/lib/dolibarr/docs:/var/www/documents"
-          ];
         };
       };
     };
@@ -57,7 +67,7 @@ in
   configurations.nixos = lib.genAttrs targetHosts (name: {
     module = { ... }: {
       imports = [ 
-        dolibarr_app 
+        dolibarr_native 
         cloudflared
       ];
     };
