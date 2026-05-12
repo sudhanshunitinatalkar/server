@@ -30,12 +30,13 @@ let
 
     # 2. PHP-FPM configured for your 4GB RAM system
     # 2. PHP-FPM configured for legacy compatibility
+    # 2. PHP-FPM configured for legacy compatibility
     services.phpfpm.pools.weberp = {
       user = "weberp";
       group = "nginx";
       
-      # DOWNGRADE TO PHP 8.1 (Much more forgiving for legacy code bases)
-      phpPackage = pkgs.php81.buildEnv {
+      # USE PHP 8.2: Still supported by NixOS, but forgiving enough for legacy code
+      phpPackage = pkgs.php82.buildEnv {
         extensions = ({ enabled, all }: enabled ++ [ all.mysqli all.gd all.gettext ]);
       };
       
@@ -53,7 +54,7 @@ let
         "env[SERVER_PORT]" = "443";
         "env[HTTP_X_FORWARDED_PROTO]" = "https";
         
-        # STOP HIDING ERRORS (Crucial for legacy debugging)
+        # Stop hiding errors
         "php_admin_flag[display_errors]" = "on";
         
         # Ignore annoying warnings about old code, only show fatal crashes
