@@ -44,11 +44,16 @@ let
     # 2. Trick Nginx & PHP into knowing they are behind an HTTPS proxy
     services.nginx.virtualHosts."erp.protoplast.in" = {
       listen = [ { addr = "127.0.0.1"; port = 8002; } ];
-      extraConfig = ''
-        fastcgi_param HTTPS on;
-        fastcgi_param SERVER_PORT 443;
-        fastcgi_param HTTP_X_FORWARDED_PROTO https;
-      '';
+      
+      # We target the exact PHP location block the Dolibarr module creates
+      # and inject our FastCGI parameters directly into it.
+      locations."~ [^/]\\.php(/|$)" = {
+        fastcgiParams = {
+          "HTTPS" = "on";
+          "SERVER_PORT" = "443";
+          "HTTP_X_FORWARDED_PROTO" = "https";
+        };
+      };
     };
   };
 
