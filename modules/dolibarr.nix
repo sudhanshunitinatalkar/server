@@ -8,8 +8,10 @@ let
           credentialsFile = "/home/sudha/.cloudflared/2815841f-6d4d-4fb5-adf0-5c82ecab3238.json";
           ingress = {
             "erp.protoplast.in" = "http://localhost:8002";
-            "*" = "http_status:404";
           };
+          
+          # ADD THIS BACK HERE: The required NixOS fallback rule
+          default = "http_status:404";
         };
       };
     };
