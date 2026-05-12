@@ -1,4 +1,4 @@
-{ lib, config, pkgs, ... }:
+{ lib, ... }:
 let
   cloudflared = { ... }: {
     services.cloudflared = {
@@ -15,7 +15,8 @@ let
     };
   };
 
-  weberp_native = { ... }: {
+  # WE MOVED pkgs AND config HERE:
+  weberp_native = { pkgs, config, ... }: {
     # 1. Lightweight Database
     services.mysql = {
       enable = true;
