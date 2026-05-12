@@ -29,13 +29,16 @@ let
     };
 
     # 2. PHP-FPM configured for your 4GB RAM system
+    # 2. PHP-FPM configured for legacy compatibility
     services.phpfpm.pools.weberp = {
       user = "weberp";
       group = "nginx";
-      phpPackage = pkgs.php83.buildEnv {
-        # webERP only needs these basic extensions
+      
+      # DOWNGRADE TO PHP 8.1 (Much more forgiving for legacy code bases)
+      phpPackage = pkgs.php81.buildEnv {
         extensions = ({ enabled, all }: enabled ++ [ all.mysqli all.gd all.gettext ]);
       };
+      
       settings = {
         "pm" = "dynamic";
         "pm.max_children" = 10;
@@ -49,6 +52,12 @@ let
         "env[HTTPS]" = "on";
         "env[SERVER_PORT]" = "443";
         "env[HTTP_X_FORWARDED_PROTO]" = "https";
+        
+        # STOP HIDING ERRORS (Crucial for legacy debugging)
+        "php_admin_flag[display_errors]" = "on";
+        
+        # Ignore annoying warnings about old code, only show fatal crashes
+        "php_admin_value[error_reporting]" = "E_ALL & ~E_NOTICE & ~E_WARNING & ~E_DEPRECATED"; 
       };
     };
 
