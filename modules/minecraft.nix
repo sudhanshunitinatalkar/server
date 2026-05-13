@@ -1,16 +1,19 @@
-{ inputs, lib, pkgs, ... }: # <-- Added 'inputs' here
+{ inputs, lib, pkgs, ... }:
 let
   # Playit Agent Module
   playit = { ... }: {
-
-    nixConfig = {
-        extra-substituters = [ "https://playit-nixos-module.cachix.org" ];
-        extra-trusted-public-keys = [ "playit-nixos-module.cachix.org-1:22hBXWXBbd/7o1cOnh+p0hpFUVk9lPdRLX3p5YSfRz4=" ];
+    # The NixOS way to add binary caches (instead of nixConfig)
+    nix.settings = {
+      substituters = [ "https://playit-nixos-module.cachix.org" ];
+      trusted-public-keys = [ "playit-nixos-module.cachix.org-1:22hBXWXBbd/7o1cOnh+p0hpFUVk9lPdRLX3p5YSfRz4=" ];
     };
+
+    # Import the module
     imports = [ inputs.playit-nixos-module.nixosModules.default ]; 
+    
     services.playit = {
       enable = true;
-      # Pointing directly to the generated secret file in your home directory.
+      # Pointing directly to the generated secret file
       secretPath = "/home/sudha/.config/playit_gg/playit.toml"; 
     };
   };
