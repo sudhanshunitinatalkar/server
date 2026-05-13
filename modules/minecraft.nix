@@ -22,14 +22,15 @@ let
   minecraft = { pkgs, ... }: {
     services.minecraft-server = {
       enable = true;
-      eula = true; # Required by Mojang
-      openFirewall = true; # Opens port 25565 by default
+      eula = true; 
+      openFirewall = true; 
       package = pkgs.minecraft-server; 
       
-      # Configure server.properties
+      declarative = true; # <-- ADD THIS LINE
+
       serverProperties = {
         server-port = 25565;
-        online-mode = false; # Disables account verification to allow TLauncher/offline clients
+        online-mode = false; 
         motd = "NixOS Minecraft Server";
       };
     };
