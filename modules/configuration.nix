@@ -60,6 +60,9 @@ let
       pciutils 
       home-manager
       cloudflared
+      sops
+      age
+      ssh-to-age
     ];
   };
 in
