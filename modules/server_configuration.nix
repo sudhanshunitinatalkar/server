@@ -16,7 +16,7 @@ let
       loader.grub = {
         enable = true;
         efiSupport = false; # Explicitly disabling EFI for older BIOS
-        # devices = [ "/dev/sda" ]; # <-- Uncomment this when installing to the MBR of the 500GB drive
+        devices = [ "/dev/sda" ]; # <-- Uncomment this when installing to the MBR of the 500GB drive
       };
     };
     hardware.bluetooth.enable = true;
