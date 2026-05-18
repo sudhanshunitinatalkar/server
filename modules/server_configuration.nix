@@ -1,6 +1,6 @@
 { lib, ... }:
 let
-  configuration = { pkgs, ... }: {
+  server_configuration = { pkgs, ... }: {
     
     # --- NIX CORE SETTINGS ---
     nix.settings = {
@@ -78,6 +78,6 @@ let
 in
 {
   configurations.nixos = lib.genAttrs targetHosts (name: {
-    module = configuration;
+    module = server_configuration;
   });
 }
