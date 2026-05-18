@@ -54,3 +54,14 @@ nixos-rebuild switch --flake .#cosmosserver --target-host sudha@192.168.29.105 -
 nixos-rebuild switch --flake .#cosmosserver --target-host sudha@cosmosserver --build-host localhost --sudo --ask-sudo-password
 
 sudo tailscale funnel --bg --https=443 localhost:8001# server
+
+
+
+installation commands
+
+sudo NIX_CONFIG="experimental-features = nix-command flakes pipe-operators" nix run github:nix-community/disko -- --mode disko --flake .#server
+
+sudo NIX_CONFIG="experimental-features = nix-command flakes pipe-operators" nixos-install --flake .#server
+
+
+cloudflared.exe service install eyJhIjoiYTNmOGMxMGE4ZTNlY2M0ODJmNGNkNjdlNzUyNDY5NDUiLCJ0IjoiNWRkNGYyMWItMzk5MC00YzlmLTlmZDctYzBhZGJmNDIwOWMxIiwicyI6Ik9EUTFObUV3WmprdE16QXpPQzAwT0dGbExXSmxNalV0TldabVlqZzVNRFl3T0RndyJ9

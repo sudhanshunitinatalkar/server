@@ -1,0 +1,10 @@
+keys:
+  - &sudha age153z68hccakxfa2zdwjn2g2zf3v400wmvhn0wasajxv0catda7p6s6rr3dv
+  - &server age1tgexcn5jlavpa5lmxeurpafu3gc0vfjkhqk0hv557l7skdmpagmqkke8aq
+
+creation_rules:
+  - path_regex: secrets/.*
+    key_groups:
+    - age:
+      - *sudha
+      - *server
