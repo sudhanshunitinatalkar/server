@@ -1,53 +1,58 @@
-{ ... }:
+{ lib, ... }:
 let
-  server = { pkgs, ... }: {
+  configuration = { pkgs, ... }: {
+    
+    # --- NIX CORE SETTINGS ---
     nix.settings = {
       experimental-features = [ "nix-command" "flakes" "pipe-operators" ];
       trusted-users = [ "root" "sudha" ];
     };
-    
     programs.nix-ld.enable = true;
-    
     nixpkgs.config.allowUnfree = true;
-    system.stateVersion = "25.11";
 
+    # --- BOOT & HARDWARE ---
+    boot = {
+      kernelPackages = pkgs.linuxPackages_latest;
+      loader.grub = {
+        enable = true;
+        efiSupport = false; # Explicitly disabling EFI for older BIOS
+        # devices = [ "/dev/sda" ]; # <-- Uncomment this when installing to the MBR of the 500GB drive
+      };
+    };
     hardware.bluetooth.enable = true;
 
+    # --- NETWORKING & SYSTEM ---
     networking = {
+      hostName = "server"; 
       networkmanager.enable = true;
       firewall.enable = false;
     };
-
     time.timeZone = "Asia/Kolkata";
     i18n.defaultLocale = "en_US.UTF-8";
     console.keyMap = "us";
 
+    # --- USERS ---
     users.users.sudha = {
       isNormalUser = true;
       extraGroups = [ "wheel" "dialout" "docker" ];
     };
 
-    services = {
-      printing.enable = true;
-      pipewire = {
+    # --- SERVICES ---
+    services.openssh.enable = true;
+    services.avahi = {
+      enable = true;
+      nssmdns4 = true; # Allows the laptop (and all nodes) to resolve .local
+      publish = {
         enable = true;
-        pulse.enable = true;
-        # ADD THESE THREE LINES:
-        alsa.enable = true;
-        alsa.support32Bit = true;
-        wireplumber.enable = true; # The modern session manager that handles dynamic routing
-      };
-      openssh.enable = true;
-      avahi = {
-        enable = true;
-        nssmdns4 = true; # Allows the laptop (and all nodes) to resolve .local
+        addresses = true;
+        workstation = true;
       };
     };
     
-    virtualisation.docker = {
-      enable = true;
-    };
+    # --- VIRTUALIZATION ---
+    virtualisation.docker.enable = true;
 
+    # --- PACKAGES ---
     environment.systemPackages = with pkgs; [
       tree 
       util-linux 
@@ -64,35 +69,15 @@ let
       age
       ssh-to-age
     ];
+    
+    system.stateVersion = "25.11"; 
   };
+
+  # Map the module to the specific host
+  targetHosts = [ "server" ];
 in
 {
-  # Server-specific node definition
-  configurations.nixos."server".module = {
-    imports = [
-      server
-      ({ pkgs, ... }: { # 2. ADDED: Added 'config' to the arguments so it can be used below
-        boot = {
-          kernelPackages = pkgs.linuxPackages_latest;
-          loader = {
-            grub = {
-              enable = true;
-              efiSupport = false; # Explicitly disabling EFI
-              # devices = [ "/dev/sda" ]; # <-- ADD THIS BACK: Tells GRUB to install to the MBR of the 500GB drive
-            };
-          };
-        };
-        networking.hostName = "server"; 
-        services.avahi = {
-          enable = true;
-          nssmdns4 = true; # Allows software to use Avahi to resolve .local domains
-          publish = {
-            enable = true;
-            addresses = true;
-            workstation = true;
-          };
-        };
-      })
-    ];
-  };
+  configurations.nixos = lib.genAttrs targetHosts (name: {
+    module = configuration;
+  });
 }
