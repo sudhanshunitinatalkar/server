@@ -20,10 +20,11 @@ let
         erpnext-db = {
           image = "mariadb:10.11";
           
-          # INJECT SECRETS HERE: NixOS will securely map the decrypted RAM file to the container
-          environmentFiles = [ config.sops.secrets."erpnext.env".path ];
+          # 1. EXPOSE TO HOST LOCALLY: This allows the app to reach the DB 
+          # without exposing your DB to the public internet.
+          ports = [ "127.0.0.1:3306:3306" ];
           
-          # Only non-sensitive data remains in the public code
+          environmentFiles = [ config.sops.secrets."erpnext.env".path ];
           environment = {
             MYSQL_DATABASE = "frappe";
             MYSQL_USER = "frappe";
@@ -34,19 +35,21 @@ let
         erpnext-app = {
           image = "frappe/erpnext:v15";
           dependsOn = [ "erpnext-db" ];
+          
+          # 2. THIS NOW WORKS: Host 8000 is mapped to Container 8080
           ports = [ "8000:8080" ];
           
-          # INJECT SECRETS HERE TOO: Both containers can read the same secure .env file
           environmentFiles = [ config.sops.secrets."erpnext.env".path ];
-          
           environment = {
-            DB_HOST = "127.0.0.1";
+            # 3. USE DOCKER BRIDGE IP: In default Docker bridge networking, 
+            # 172.17.0.1 routes traffic from the container back to the host machine.
+            DB_HOST = "172.17.0.1"; 
             DB_PORT = "3306";
             DB_NAME = "frappe";
             DB_USER = "frappe";
           };
           volumes = [ "/var/lib/erpnext/sites:/home/frappe/frappe-bench/sites" ];
-          extraOptions = [ "--network=host" ];
+          
         };
       };
     };
