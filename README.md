@@ -63,5 +63,6 @@ sudo NIX_CONFIG="experimental-features = nix-command flakes pipe-operators" nix 
 
 sudo NIX_CONFIG="experimental-features = nix-command flakes pipe-operators" nixos-install --flake .#server
 
+sudo docker exec -it erpnext-app bench new-site erp.protoplast.in --db-host erpnext-db
 
-cloudflared.exe service install eyJhIjoiYTNmOGMxMGE4ZTNlY2M0ODJmNGNkNjdlNzUyNDY5NDUiLCJ0IjoiNWRkNGYyMWItMzk5MC00YzlmLTlmZDctYzBhZGJmNDIwOWMxIiwicyI6Ik9EUTFObUV3WmprdE16QXpPQzAwT0dGbExXSmxNalV0TldabVlqZzVNRFl3T0RndyJ9
+sudo docker exec -it erpnext-app bench --site erp.protoplast.in install-app erpnext

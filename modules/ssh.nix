@@ -9,10 +9,10 @@ let
         PermitRootLogin = "no";
         
         # Enforce SSH keys by disabling password authentication
-        PasswordAuthentication = true;
+        PasswordAuthentication = false;
         
         # Disable keyboard-interactive authentication (often used as a fallback for passwords)
-        KbdInteractiveAuthentication = true;
+        KbdInteractiveAuthentication = false;
       };
     };
   };
