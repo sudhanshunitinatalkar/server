@@ -11,6 +11,12 @@ let
       format = "dotenv";
     };
 
+    # 3. Ensure Docker volumes exist with the correct non-root permissions
+    systemd.tmpfiles.rules = [
+      "d /var/lib/erpnext/sites 0755 1000 1000 -"
+      "d /var/lib/erpnext/mysql 0755 999 999 -"
+    ];
+
     # Ensure Docker is enabled
     virtualisation.docker.enable = true;
     
@@ -37,7 +43,7 @@ let
           dependsOn = [ "erpnext-db" ];
           
           # 2. THIS NOW WORKS: Host 8000 is mapped to Container 8080
-          ports = [ "8000:8080" ];
+          ports = [ "8000:8000" ];
           
           environmentFiles = [ config.sops.secrets."erpnext.env".path ];
           environment = {
