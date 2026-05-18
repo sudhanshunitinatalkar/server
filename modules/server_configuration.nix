@@ -35,10 +35,12 @@ let
     users.users.sudha = {
       isNormalUser = true;
       extraGroups = [ "wheel" "dialout" "docker" ];
+      openssh.authorizedKeys.keys = [
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDdfZw/MmcnLsmvKjzjAee3rFYnmT2TYaKa+PmvXOJoo sudha@cosmoslaptop"
+      ];
     };
 
     # --- SERVICES ---
-    services.openssh.enable = true;
     services.avahi = {
       enable = true;
       nssmdns4 = true; # Allows the laptop (and all nodes) to resolve .local
