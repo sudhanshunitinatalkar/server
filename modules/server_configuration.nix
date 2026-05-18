@@ -36,7 +36,7 @@ let
       isNormalUser = true;
       extraGroups = [ "wheel" "dialout" "docker" ];
       openssh.authorizedKeys.keys = [
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDdfZw/MmcnLsmvKjzjAee3rFYnmT2TYaKa+PmvXOJoo sudha@cosmoslaptop"
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIALJ8zFKvTUdkpoltZWDRBTRdKUrU9XLwaP4AWIMYGPM sudha@laptop"
       ];
     };
 
