@@ -62,7 +62,9 @@ let
     };
   };
 
-  # targetHosts = [ "server" ];
+  targetHosts = [ 
+    # "server" 
+    ];
 in
 {
   configurations.nixos = lib.genAttrs targetHosts (name: {
