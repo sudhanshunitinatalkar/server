@@ -29,7 +29,6 @@ let
             MYSQL_USER = "frappe";
           };
           volumes = [ "/var/lib/erpnext/mysql:/var/lib/mysql" ];
-          extraOptions = [ "--network=host" ];
         };
 
         erpnext-app = {
