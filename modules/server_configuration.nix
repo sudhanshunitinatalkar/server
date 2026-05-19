@@ -52,7 +52,14 @@ let
     };
     
     # --- VIRTUALIZATION ---
-    virtualisation.docker.enable = true;
+    virtualisation.docker = {
+      enable = true;
+      daemon.settings = {
+        "max-concurrent-downloads" = 1;
+        "max-concurrent-uploads" = 1;
+        "registry-mirrors" = []; # Ensures no interference
+      };
+    };
 
     # --- PACKAGES ---
     environment.systemPackages = with pkgs; [
