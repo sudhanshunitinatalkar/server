@@ -86,7 +86,7 @@ let
   };
 
   targetHosts = [ 
-    # "server" 
+    "server" 
     ];
 in {
   configurations.nixos = lib.genAttrs targetHosts (name: { module = erpnext; });
