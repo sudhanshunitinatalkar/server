@@ -77,3 +77,12 @@ sudo mkdir -p /var/lib/my-remote-app/keys
 # 3. Generate a brand new age key JUST for this container
 age-keygen -o /var/lib/my-remote-app/keys/container-age.txt
 
+
+sudo docker exec -it erpnext-backend bench new-site \
+  --mariadb-user-host-login-scope='%' \
+  --admin-password=YOUR_DESIRED_PASSWORD \
+  --db-root-username=root \
+  --db-root-password=admin \
+  --install-app erpnext \
+  --set-default \
+  erp.yourdomain.com
