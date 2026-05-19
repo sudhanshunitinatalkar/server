@@ -38,10 +38,6 @@
       url = "github:pedorich-n/playit-nixos-module";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    erpnext = {
-      url = "github:sudhanshunitinatalkar/erpnext";
-      inputs.nixpkgs.follows = "nixpkgs"; # Saves space by using the same nixpkgs
-    };
   };
   outputs =
     inputs:
