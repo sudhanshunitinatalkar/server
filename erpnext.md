@@ -1,167 +1,265 @@
-Here is exactly how to start this up.
+Perfect. Here's everything you need.
 
-Because we moved back to the host-level Docker implementation, the startup process is extremely straightforward. However, there is one critical step specific to the Frappe Docker architecture: starting the container doesn't automatically create a "Site" (the actual ERPNext instance). You have to initialize the site manually the first time.
+---
 
-### 1. The Sample `erpnext.env` File
+## `erpnext.nix`
 
-Create your secret file at `server/secrets/erpnext.env`.
+```nix
+{ lib, inputs, ... }:
 
-The MariaDB container and the ERPNext container both read this file, so the `MYSQL_PASSWORD` and `DB_PASSWORD` must exactly match so they can talk to each other.
+let
+  frappeImage = "frappe/erpnext:v16.18.3";
+  frappeNetwork = "frappe_network";
+in {
+  imports = [ inputs.sops-nix.nixosModules.sops ];
 
-```env
-Here is exactly how to start this up.
+  sops = {
+    age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+    secrets."erpnext.env" = {
+      sopsFile = ../secrets/erpnext.env;
+      format = "dotenv";
+    };
+  };
 
-Because we moved back to the host-level Docker implementation, the startup process is extremely straightforward. However, there is one critical step specific to the Frappe Docker architecture: starting the container doesn't automatically create a "Site" (the actual ERPNext instance). You have to initialize the site manually the first time.
+  virtualisation.docker.enable = true;
+  virtualisation.oci-containers.backend = "docker";
 
-### 1. The Sample `erpnext.env` File
+  # Create the docker bridge network before any container starts
+  systemd.services."docker-network-frappe" = {
+    description = "Create frappe_network docker bridge network";
+    before = [
+      "docker-erpnext-db.service"
+      "docker-erpnext-backend.service"
+      "docker-erpnext-frontend.service"
+      "docker-erpnext-websocket.service"
+      "docker-erpnext-queue-short.service"
+      "docker-erpnext-queue-long.service"
+      "docker-erpnext-scheduler.service"
+      "docker-erpnext-redis-cache.service"
+      "docker-erpnext-redis-queue.service"
+    ];
+    wantedBy = [ "multi-user.target" ];
+    after = [ "docker.service" ];
+    requires = [ "docker.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      if ! /run/current-system/sw/bin/docker network inspect ${frappeNetwork} > /dev/null 2>&1; then
+        /run/current-system/sw/bin/docker network create --driver bridge ${frappeNetwork}
+      fi
+    '';
+  };
 
-Create your secret file at `server/secrets/erpnext.env`.
+  # Prepare host directories with correct ownership
+  systemd.services."erpnext-init-dirs" = {
+    description = "Initialize ERPNext host directories";
+    before = [
+      "docker-erpnext-backend.service"
+      "docker-erpnext-frontend.service"
+    ];
+    wantedBy = [ "multi-user.target" ];
+    after = [ "docker.service" ];
+    requires = [ "docker.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = ''
+      mkdir -p /var/lib/erpnext/sites
+      mkdir -p /var/lib/erpnext/logs
+      mkdir -p /var/lib/erpnext/mysql
+      mkdir -p /var/lib/erpnext/redis-queue
+      chown -R 1000:1000 /var/lib/erpnext/sites
+      chown -R 1000:1000 /var/lib/erpnext/logs
+    '';
+  };
 
-The MariaDB container and the ERPNext container both read this file, so the `MYSQL_PASSWORD` and `DB_PASSWORD` must exactly match so they can talk to each other.
+  virtualisation.oci-containers.containers = {
 
-```env
-# ----------------------------------------
-# MariaDB Database Initialization
-# ----------------------------------------
-# The root password for the entire MariaDB server
-MYSQL_ROOT_PASSWORD=YourSuperSecureRootPassword123!
+    erpnext-db = {
+      image = "mariadb:11.8";
+      networks = [ frappeNetwork ];
+      environmentFiles = [ "/run/secrets/erpnext.env" ];
+      volumes = [ "/var/lib/erpnext/mysql:/var/lib/mysql" ];
+      cmd = [
+        "--character-set-server=utf8mb4"
+        "--collation-server=utf8mb4_unicode_ci"
+        "--skip-character-set-client-handshake"
+      ];
+      extraOptions = [
+        "--health-cmd=healthcheck.sh --connect --innodb_initialized"
+        "--health-start-period=5s"
+        "--health-interval=5s"
+        "--health-timeout=5s"
+        "--health-retries=5"
+      ];
+    };
 
-# The password for the specific 'frappe' database user
-MYSQL_PASSWORD=YourSecureFrappeUserPassword123!
+    erpnext-redis-cache = {
+      image = "redis:6.2-alpine";
+      networks = [ frappeNetwork ];
+    };
 
-# ----------------------------------------
-# ERPNext / Frappe App Configuration
-# ----------------------------------------
-# Must match MYSQL_PASSWORD above
-DB_PASSWORD=YourSecureFrappeUserPassword123!
+    erpnext-redis-queue = {
+      image = "redis:6.2-alpine";
+      networks = [ frappeNetwork ];
+      volumes = [ "/var/lib/erpnext/redis-queue:/data" ];
+    };
 
-# The password for the ERPNext 'Administrator' web login
-ADMIN_PASSWORD=YourSecureAdminPassword123!
+    erpnext-backend = {
+      image = frappeImage;
+      networks = [ frappeNetwork ];
+      dependsOn = [ "erpnext-db" "erpnext-redis-cache" "erpnext-redis-queue" ];
+      volumes = [
+        "/var/lib/erpnext/sites:/home/frappe/frappe-bench/sites"
+        "/var/lib/erpnext/logs:/home/frappe/frappe-bench/logs"
+      ];
+      environmentFiles = [ "/run/secrets/erpnext.env" ];
+    };
 
+    erpnext-websocket = {
+      image = frappeImage;
+      networks = [ frappeNetwork ];
+      dependsOn = [ "erpnext-backend" ];
+      cmd = [ "node" "/home/frappe/frappe-bench/apps/frappe/socketio.js" ];
+      volumes = [
+        "/var/lib/erpnext/sites:/home/frappe/frappe-bench/sites"
+        "/var/lib/erpnext/logs:/home/frappe/frappe-bench/logs"
+      ];
+      environmentFiles = [ "/run/secrets/erpnext.env" ];
+    };
+
+    erpnext-frontend = {
+      image = frappeImage;
+      networks = [ frappeNetwork ];
+      dependsOn = [ "erpnext-backend" "erpnext-websocket" ];
+      cmd = [ "nginx-entrypoint.sh" ];
+      ports = [ "8080:8080" ];
+      volumes = [
+        "/var/lib/erpnext/sites:/home/frappe/frappe-bench/sites"
+        "/var/lib/erpnext/logs:/home/frappe/frappe-bench/logs"
+      ];
+      environmentFiles = [ "/run/secrets/erpnext.env" ];
+    };
+
+    erpnext-queue-short = {
+      image = frappeImage;
+      networks = [ frappeNetwork ];
+      dependsOn = [ "erpnext-backend" ];
+      cmd = [ "bench" "worker" "--queue" "short,default" ];
+      volumes = [
+        "/var/lib/erpnext/sites:/home/frappe/frappe-bench/sites"
+        "/var/lib/erpnext/logs:/home/frappe/frappe-bench/logs"
+      ];
+      environmentFiles = [ "/run/secrets/erpnext.env" ];
+    };
+
+    erpnext-queue-long = {
+      image = frappeImage;
+      networks = [ frappeNetwork ];
+      dependsOn = [ "erpnext-backend" ];
+      cmd = [ "bench" "worker" "--queue" "long,default,short" ];
+      volumes = [
+        "/var/lib/erpnext/sites:/home/frappe/frappe-bench/sites"
+        "/var/lib/erpnext/logs:/home/frappe/frappe-bench/logs"
+      ];
+      environmentFiles = [ "/run/secrets/erpnext.env" ];
+    };
+
+    erpnext-scheduler = {
+      image = frappeImage;
+      networks = [ frappeNetwork ];
+      dependsOn = [ "erpnext-backend" ];
+      cmd = [ "bench" "schedule" ];
+      volumes = [
+        "/var/lib/erpnext/sites:/home/frappe/frappe-bench/sites"
+        "/var/lib/erpnext/logs:/home/frappe/frappe-bench/logs"
+      ];
+      environmentFiles = [ "/run/secrets/erpnext.env" ];
+    };
+
+  };
+}
 ```
 
-### 2. Encrypt and Apply
+---
 
-1. **Encrypt the file:** Use `sops` to encrypt the file with your server's age/ssh key, just like you did for your Cloudflare secrets.
+## `secrets/erpnext.env` (plaintext sample — encrypt this with sops before committing)
+
+```dotenv
+# MariaDB
+MYSQL_ROOT_PASSWORD=changeme_strong_root_password
+MARIADB_ROOT_PASSWORD=changeme_strong_root_password
+
+# ERPNext DB connection (used by backend/workers)
+DB_HOST=erpnext-db
+DB_PORT=3306
+
+# Redis
+REDIS_CACHE=erpnext-redis-cache:6379
+REDIS_QUEUE=erpnext-redis-queue:6379
+FRAPPE_REDIS_CACHE=redis://erpnext-redis-cache:6379
+FRAPPE_REDIS_QUEUE=redis://erpnext-redis-queue:6379
+
+# Socketio
+SOCKETIO_PORT=9000
+
+# Frontend
+BACKEND=erpnext-backend:8000
+SOCKETIO=erpnext-websocket:9000
+FRAPPE_SITE_NAME_HEADER=erp.protoplast.in
+UPSTREAM_REAL_IP_ADDRESS=127.0.0.1
+UPSTREAM_REAL_IP_HEADER=X-Forwarded-For
+UPSTREAM_REAL_IP_RECURSIVE=off
+PROXY_READ_TIMEOUT=120
+CLIENT_MAX_BODY_SIZE=50m
+
+# ERPNext admin (used only in bench new-site, not read by containers at runtime)
+# Keep here for reference — you'll paste it into the command below
+ERPNEXT_ADMIN_PASSWORD=changeme_strong_admin_password
+```
+
+Encrypt it with:
 ```bash
-sops -e -i server/secrets/erpnext.env
-
+sops --encrypt --in-place secrets/erpnext.env
 ```
 
+---
 
-2. **Track in Git:** NixOS Flakes cannot read files unless they are tracked by git.
+## First-boot configurator command (run once after all containers are up)
+
+**Step 1 — write `common_site_config.json` into the sites volume:**
 ```bash
-git add server/secrets/erpnext.env
-git add server/modules/erpnext.nix
-
+sudo docker exec -it erpnext-backend bash -c "
+  bench set-config -g db_host erpnext-db &&
+  bench set-config -gp db_port 3306 &&
+  bench set-config -g redis_cache 'redis://erpnext-redis-cache:6379' &&
+  bench set-config -g redis_queue 'redis://erpnext-redis-queue:6379' &&
+  bench set-config -g redis_socketio 'redis://erpnext-redis-queue:6379' &&
+  bench set-config -gp socketio_port 9000 &&
+  bench set-config -g chromium_path /usr/bin/chromium-headless-shell
+"
 ```
 
-
-3. **Rebuild the Server:**
+**Step 2 — create the site:**
 ```bash
-sudo nixos-rebuild switch --flake .#server
-
+sudo docker exec -it erpnext-backend bench new-site \
+  --mariadb-user-host-login-scope='%' \
+  --admin-password=changeme_strong_admin_password \
+  --db-root-username=root \
+  --db-root-password=changeme_strong_root_password \
+  --install-app erpnext \
+  --set-default \
+  erp.protoplast.in
 ```
 
+---
 
-*At this point, NixOS will download the Docker images, start the database, start Redis, and boot the ERPNext app container on port 8001.*
+## Notes
 
-### 3. Initialize Your ERPNext Site (Crucial Step)
-
-Frappe is a multi-tenant framework. It uses the URL you type in your browser (the "Host" header) to figure out which database to serve. Because your Cloudflare tunnel will route traffic to something like `erp.yourdomain.com`, **your Frappe site must be named exactly the same as your domain.**
-
-Run this command directly on your server to tell the running ERPNext container to initialize your site and install the ERPNext application into it.
-
-*(Replace `erp.yourdomain.com` with the actual public URL you plan to use in Cloudflare)*:
-
-```bash
-sudo docker exec -it erpnext-app bench new-site erp.yourdomain.com \
-  --db-root-password 'YourSuperSecureRootPassword123!' \
-  --admin-password 'YourSecureAdminPassword123!' \
-  --install-app erpnext
-
-```
-
-*Note: This command will take a few minutes to run. It is building the database tables and compiling the web assets.*
-
-Once it finishes, tell the container to use this site by default if it ever gets confused:
-
-```bash
-sudo docker exec -it erpnext-app bench use erp.yourdomain.com
-
-```
-
-### 4. Route via Cloudflare
-
-Since your Cloudflared tunnel configuration (from the `cloudflared.nix` file you uploaded previously) is already running on the host network, you just need to update your Cloudflare Zero Trust dashboard.
-
-Add a new Public Hostname route:
-
-* **Public Hostname:** `erp.yourdomain.com` (Must match the site name you created above)
-* **Service:** `http://localhost:8001`
-
-Navigate to that URL, and you should be greeted by the ERPNext login screen. Use the username **Administrator** and the `ADMIN_PASSWORD` you set in your `.env` file to log in.
-
-```
-
-### 2. Encrypt and Apply
-
-1. **Encrypt the file:** Use `sops` to encrypt the file with your server's age/ssh key, just like you did for your Cloudflare secrets.
-```bash
-sops -e -i server/secrets/erpnext.env
-
-```
-
-
-2. **Track in Git:** NixOS Flakes cannot read files unless they are tracked by git.
-```bash
-git add server/secrets/erpnext.env
-git add server/modules/erpnext.nix
-
-```
-
-
-3. **Rebuild the Server:**
-```bash
-sudo nixos-rebuild switch --flake .#server
-
-```
-
-
-*At this point, NixOS will download the Docker images, start the database, start Redis, and boot the ERPNext app container on port 8001.*
-
-### 3. Initialize Your ERPNext Site (Crucial Step)
-
-Frappe is a multi-tenant framework. It uses the URL you type in your browser (the "Host" header) to figure out which database to serve. Because your Cloudflare tunnel will route traffic to something like `erp.yourdomain.com`, **your Frappe site must be named exactly the same as your domain.**
-
-Run this command directly on your server to tell the running ERPNext container to initialize your site and install the ERPNext application into it.
-
-*(Replace `erp.yourdomain.com` with the actual public URL you plan to use in Cloudflare)*:
-
-```bash
-sudo docker exec -it erpnext-app bench new-site erp.yourdomain.com \
-  --db-root-password 'YourSuperSecureRootPassword123!' \
-  --admin-password 'YourSecureAdminPassword123!' \
-  --install-app erpnext
-
-```
-
-*Note: This command will take a few minutes to run. It is building the database tables and compiling the web assets.*
-
-Once it finishes, tell the container to use this site by default if it ever gets confused:
-
-```bash
-sudo docker exec -it erpnext-app bench use erp.yourdomain.com
-
-```
-
-### 4. Route via Cloudflare
-
-Since your Cloudflared tunnel configuration (from the `cloudflared.nix` file you uploaded previously) is already running on the host network, you just need to update your Cloudflare Zero Trust dashboard.
-
-Add a new Public Hostname route:
-
-* **Public Hostname:** `erp.yourdomain.com` (Must match the site name you created above)
-* **Service:** `http://localhost:8001`
-
-Navigate to that URL, and you should be greeted by the ERPNext login screen. Use the username **Administrator** and the `ADMIN_PASSWORD` you set in your `.env` file to log in.
+- **Order matters:** run Step 1 before Step 2. Step 1 produces `common_site_config.json` which `bench new-site` depends on.
+- **First deploy only:** you never need to run these again unless you wipe the `sites` volume.
+- **Cloudflare Tunnel:** point your tunnel to `http://localhost:8080`. The `FRAPPE_SITE_NAME_HEADER` is already set to `erp.protoplast.in` in the env, so Frappe will resolve the correct site from the host header Cloudflare forwards.
+- **`/run/secrets/erpnext.env`** is the path sops-nix writes the decrypted secret to at runtime — that's what the `environmentFiles` entries reference.
