@@ -66,3 +66,13 @@ sudo NIX_CONFIG="experimental-features = nix-command flakes pipe-operators" nixo
 sudo docker exec -it erpnext-app bench new-site erp.protoplast.in --db-host erpnext-db
 
 sudo docker exec -it erpnext-app bench --site erp.protoplast.in install-app erpnext
+
+
+# 1. Create a folder for the persistent database
+sudo mkdir -p /var/lib/my-remote-app/db
+
+# 2. Create a folder for the container's private decryption key
+sudo mkdir -p /var/lib/my-remote-app/keys
+
+# 3. Generate a brand new age key JUST for this container
+age-keygen -o /var/lib/my-remote-app/keys/container-age.txt

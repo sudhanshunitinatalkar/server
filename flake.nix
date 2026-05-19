@@ -38,11 +38,14 @@
       url = "github:pedorich-n/playit-nixos-module";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    erpnext = {
+      url = "github:sudhanshunitinatalkar/erpnext";
+      inputs.nixpkgs.follows = "nixpkgs"; # Saves space by using the same nixpkgs
+    };
   };
   outputs =
     inputs:
     inputs.flake-parts.lib.mkFlake { inherit inputs; }
-      # Imports all of the top-level modules (the files under `./modules`)
       (inputs.import-tree ./modules);
 }
 
