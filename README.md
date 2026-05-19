@@ -76,3 +76,4 @@ sudo mkdir -p /var/lib/my-remote-app/keys
 
 # 3. Generate a brand new age key JUST for this container
 age-keygen -o /var/lib/my-remote-app/keys/container-age.txt
+
