@@ -66,6 +66,12 @@ let
         mkdir -p /var/lib/erpnext/logs
         mkdir -p /var/lib/erpnext/mysql
         mkdir -p /var/lib/erpnext/redis-queue
+        
+        # Create apps.txt if it doesn't exist
+        if [ ! -f /var/lib/erpnext/sites/apps.txt ]; then
+          echo -e "frappe\nerpnext" > /var/lib/erpnext/sites/apps.txt
+        fi
+        
         chown -R 1000:1000 /var/lib/erpnext/sites
         chown -R 1000:1000 /var/lib/erpnext/logs
       '';
